@@ -1,0 +1,8 @@
+# Small manually maintained starter list, not a comprehensive ad blocker.
+# One domain per line; subdomains are covered by dnsmasq local=/domain/.
+# Review for breakage. Maximum 5000 unique domains is an input guard, not a RAM guarantee.
+doubleclick.net
+googlesyndication.com
+googleadservices.com
+adservice.google.com
+ads.youtube.com

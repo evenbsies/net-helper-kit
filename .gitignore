@@ -1,0 +1,23 @@
+# Generated plans MUST NOT be committed. Keep custom output outside the repository.
+private-output/
+.nhk-plan.*/
+*.key
+*.pem
+*.crt
+server.yaml
+client.json
+node-uri.txt
+SHA256SUMS
+hysteria
+*.log
+*.tar.gz
+.env
+.env.*
+__pycache__/
+
+# Shared-domain tokens are private; keep profile directories outside the source tree.
+private-ddns/
+private-domain/
+net-helper-domain/
+.nhk-dns.*/
+token

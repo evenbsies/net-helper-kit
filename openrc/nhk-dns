@@ -1,0 +1,26 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+name="nhk-dns"
+description="Private loopback-only ad filtering DNS"
+supervisor="supervise-daemon"
+command="/usr/sbin/dnsmasq"
+command_args="--keep-in-foreground --pid-file= --conf-file=/etc/net-helper-kit/dnsmasq.conf"
+respawn_delay=5
+respawn_max=3
+respawn_period=60
+output_logger="logger -t nhk-dns"
+error_logger="logger -t nhk-dns"
+depend() {
+    after net
+    before nhk-hysteria
+}
+start_pre() {
+    /usr/sbin/dnsmasq --test --conf-file=/etc/net-helper-kit/dnsmasq.conf
+}
+healthcheck() {
+    health_pid=$(service_get_value child_pid)
+    case "$health_pid" in ''|*[!0-9]*) return 1 ;; esac
+    kill -0 "$health_pid" 2>/dev/null || return 1
+    [ "$(cat "/proc/$health_pid/comm" 2>/dev/null)" = dnsmasq ] || return 1
+    awk '/^State:/ {if ($2 == "Z") exit 1}' "/proc/$health_pid/status"
+}

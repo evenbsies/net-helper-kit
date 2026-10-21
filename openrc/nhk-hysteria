@@ -1,0 +1,27 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+name="nhk-hysteria"
+description="Hysteria 2 with private DNS resolver"
+supervisor="supervise-daemon"
+command="/opt/net-helper-kit/hysteria"
+command_args="server --config /etc/net-helper-kit/server.yaml"
+command_user="nhk:nhk"
+respawn_delay=5
+respawn_max=3
+respawn_period=60
+output_logger="logger -t nhk-hysteria"
+error_logger="logger -t nhk-hysteria"
+# Go runtime hints, NOT an OS memory limit or RSS guarantee.
+export GOMEMLIMIT=24MiB
+export GOGC=50
+depend() {
+    need nhk-dns
+    after net
+}
+healthcheck() {
+    health_pid=$(service_get_value child_pid)
+    case "$health_pid" in ''|*[!0-9]*) return 1 ;; esac
+    kill -0 "$health_pid" 2>/dev/null || return 1
+    [ "$(cat "/proc/$health_pid/comm" 2>/dev/null)" = hysteria ] || return 1
+    awk '/^State:/ {if ($2 == "Z") exit 1}' "/proc/$health_pid/status"
+}
