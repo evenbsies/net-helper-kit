@@ -33,6 +33,14 @@ IP 变化没有自动续期、定时器或 daemon。请先手动编辑 profile �
 
 计划含密码、私钥、客户端 JSON 和 URI，不应上传、提交 Git、截图或发布。文档和测试只使用占位符；不要记录真实地址、端口、密码、私钥、token 或公网主机信息。自签名证书有效期 365 天且没有自动续期；两种证书模式均生成 pin，换证书后必须更新客户端 pin。自有证书模式不要打开 `insecure`。
 
+## 低端口的最小权限例外
+
+默认拒绝内部 1–1023 端口。显式 `NHK_LOW_PORT=capability` 可为确有此类 NAT 映射的计划启用低端口支持；服务仍以 `nhk:nhk` 运行，仅 Hysteria 二进制具有 `cap_net_bind_service=ep`，没有全局 sysctl 放宽、root 服务或防火墙重定向。计划记录绑定模式并纳入完整性与语义校验。高端口安装不授予此 capability；底层容器不支持时必须报错并按安装器策略清理，不回退为 root。
+
+## BBR 拥塞控制
+
+生成计划可选 Hysteria 2.8.0 起支持的 BBR profile；服务端和客户端均保存为 Hysteria 自身的 QUIC 拥塞控制配置，不调整 Linux TCP sysctl。`aggressive` 不是性能保证，可能增加共享链路的流量竞争；项目未在 64 MB 环境下做 BBR 压力或长期测试。小主机请先使用默认 `standard`，只在实测确认后切换。详见 [`docs/ACCELERATION.md`](docs/ACCELERATION.md) 及 [Hysteria 官方配置说明](https://v2.hysteria.network/docs/advanced/Full-Server-Config/)。
+
 ## 服务与 DNS
 
 dnsmasq 仅绑定 `127.0.0.1:5353`，上游是明文 UDP/53，不是 DoH。OpenRC 使用 `after net` 而不是 `need net`，DNS 服务先于 Hysteria，不接管 NAT 容器网络。过滤只覆盖 Hysteria 收到并转发的域名请求，不保证 IP 直连、客户端本地解析、DoH/DoT 或应用内置解析受到过滤。

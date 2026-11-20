@@ -16,10 +16,20 @@ plan() {
     valid_host "$HOST" || die '服务器地址无效'
     ask_value '容器内部 UDP 监听端口' '24443'; INTERNAL=$ANSWER
     valid_port "$INTERNAL" || die '内部端口必须为 1–65535（不带前导零）'
-    [ "$INTERNAL" -ge 1024 ] || die '独立非特权服务仅支持内部端口 >=1024'
     [ "$INTERNAL" -ne 5353 ] || die '5353 已保留给本地 DNS'
+    BINDING_MODE=unprivileged
+    if [ "$INTERNAL" -lt 1024 ]; then
+        [ "${NHK_LOW_PORT:-}" = capability ] || die '低端口默认拒绝；仅在明确设置 NHK_LOW_PORT=capability 后重试'
+        BINDING_MODE=capability
+        printf '%s\n' '已选择 capability 模式：apply 将仅为 Hysteria 二进制添加 cap_net_bind_service=ep，服务仍以 nhk:nhk 非 root 运行。'
+    fi
     ask_value 'NAT 公网 UDP 端口（客户端使用）' "$INTERNAL"; EXTERNAL=$ANSWER
     valid_port "$EXTERNAL" || die '外部端口无效'
+    ask_value 'Hysteria 2 BBR 档位 (standard/conservative/aggressive)' 'standard'; BBR_PROFILE=$ANSWER
+    case "$BBR_PROFILE" in
+        standard|conservative|aggressive) ;;
+        *) die 'BBR 档位只能是 standard、conservative 或 aggressive' ;;
+    esac
     ask_value '上游 DNS IPv4（明文 UDP/53）' '1.1.1.1'; UPSTREAM=$ANSWER
     valid_ipv4 "$UPSTREAM" || die '上游仅支持 IPv4'
     case "$UPSTREAM" in 127.*|0.*|255.*) die '禁止回环、未指定或广播上游，避免 DNS 循环' ;; esac
@@ -65,7 +75,9 @@ plan() {
     cp "$BINARY" "$STAGE/hysteria"
     printf '%s\n' "$EXPECTED" > "$STAGE/binary.sha256"
     printf '%s\n' "$MODE" > "$STAGE/tls-mode"
-    printf '1\n' > "$STAGE/format-version"
+    printf '%s\n' "$BINDING_MODE" > "$STAGE/binding-mode"
+    printf '%s\n' "$BBR_PROFILE" > "$STAGE/bbr-profile"
+    printf '3\n' > "$STAGE/format-version"
     # Rule compiler accepts only domain names; no downloaded shell/config directives.
     awk -f "$BASE/lib/rules.awk" "$BASE/rules/blocklist.txt" > "$STAGE/blocklist.conf" || die '规则列表无效'
     cat > "$STAGE/dnsmasq.conf" <<EOF
@@ -96,6 +108,9 @@ resolver:
   udp:
     addr: 127.0.0.1:5353
     timeout: 4s
+congestion:
+  type: bbr
+  bbrProfile: $BBR_PROFILE
 quic:
   initStreamReceiveWindow: 2097152
   maxStreamReceiveWindow: 2097152
@@ -115,6 +130,7 @@ EOF
     "insecure": $INSECURE,
     "pinSHA256": "$PIN"
   },
+  "congestion": {"type": "bbr", "bbrProfile": "$BBR_PROFILE"},
   "socks5": {"listen": "127.0.0.1:1080"}
 }
 EOF
@@ -128,5 +144,7 @@ EOF
     printf '%s\n' '包含随机节点密码和私钥，不要上传、截图或提交 Git。' \
         '自签模式必须同时启用固定 pinSHA256；第三方客户端不支持固定指纹时不要导入。' \
         '请审阅配置、证书、二进制来源和 NAT UDP 映射，再在目标 Alpine 上执行 apply。' \
-        '当前没有修改目标 VPS，也没有发布 GitHub。'
+        '低端口 capability 仅在计划明确标记时 apply；不修改全局 sysctl、防火墙或 NAT。' \
+        'BBR profile 同时写入服务端 YAML 和客户端 JSON；节点 URI 不携带此字段，需用 JSON 才能应用所选档位。' \
+        '计划生成没有修改目标 VPS，也不会上传私有计划。'
 }

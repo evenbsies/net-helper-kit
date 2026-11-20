@@ -27,7 +27,7 @@ class ProjectTests(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory(prefix='nhk-tests-')
         cls.work = Path(cls.tmp.name)
         cls.binary = cls.work / 'hysteria-test-fixture'
-        cls.binary.write_text('#!/bin/sh\nprintf "Version: v2.0.0\\n"\n')
+        cls.binary.write_text('#!/bin/sh\nprintf "Version: v2.8.2\\n"\n')
         cls.binary.chmod(0o700)
         cls.sha = hashlib.sha256(cls.binary.read_bytes()).hexdigest()
         cls.plan = cls.work / 'plan'
@@ -39,12 +39,15 @@ class ProjectTests(unittest.TestCase):
 
     @classmethod
     def make_plan(cls, dest, host='node.example.com', internal='24443', external='34443',
+                  bbr_profile='standard',
                   upstream='1.1.1.1', sha=None, mode='pin', cert=None, key=None,
-                  shell=None):
-        answers = [host, internal, external, upstream, str(cls.binary), sha or cls.sha, mode]
+                  shell=None, low_port=False):
+        answers = [host, internal, external, bbr_profile, upstream, str(cls.binary), sha or cls.sha, mode]
         if mode == 'cert':
             answers += [str(cert), str(key)]
         cmd = [str(ROOT / 'wizard.sh'), 'plan', str(dest)]
+        if low_port:
+            cmd = ['env', 'NHK_LOW_PORT=capability'] + cmd
         if shell:
             cmd = shell + cmd
         return run(*cmd, data='\n'.join(answers) + '\n', check=False)
@@ -59,6 +62,8 @@ class ProjectTests(unittest.TestCase):
         cfg = json.loads((self.plan / 'client.json').read_text())
         self.assertEqual(cfg['server'], 'node.example.com:34443')
         self.assertIn('listen: 0.0.0.0:24443', (self.plan / 'server.yaml').read_text())
+        self.assertIn('bbrProfile: standard', (self.plan / 'server.yaml').read_text())
+        self.assertEqual(cfg['congestion'], {'type': 'bbr', 'bbrProfile': 'standard'})
 
     def test_03_pin_required(self):
         cfg = json.loads((self.plan / 'client.json').read_text())
@@ -86,6 +91,9 @@ class ProjectTests(unittest.TestCase):
     def test_06_manifest(self):
         result = self.lib('verify_plan "' + str(self.plan) + '"')
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.plan / 'format-version').read_text().strip(), '3')
+        self.assertEqual((self.plan / 'binding-mode').read_text().strip(), 'unprivileged')
+        self.assertEqual((self.plan / 'bbr-profile').read_text().strip(), 'standard')
 
     def test_07_corruption_rejected(self):
         dest = self.work / 'tampered'
@@ -109,7 +117,7 @@ class ProjectTests(unittest.TestCase):
         cases = [dict(host='bad;touch.invalid'), dict(host='a..example'),
                  dict(host='-a.example'), dict(host='999.1.2.3'),
                  dict(internal='53'), dict(internal='5353'), dict(internal='0'),
-                 dict(internal='65536'), dict(internal='024443'),
+                 dict(internal='65536'), dict(internal='024443'), dict(bbr_profile='unsafe'),
                  dict(external='0'), dict(external='65536'),
                  dict(upstream='127.0.0.1'), dict(upstream='1.2.3.999'),
                  dict(sha='0' * 64), dict(mode='invalid')]
@@ -118,6 +126,36 @@ class ProjectTests(unittest.TestCase):
                 dest = self.work / ('invalid-' + str(i))
                 self.assertNotEqual(self.make_plan(dest, **kwargs).returncode, 0)
                 self.assertFalse(dest.exists())
+
+    def test_10a_low_port_capability_optin(self):
+        rejected = self.make_plan(self.work / 'low-default', internal='80', external='34774')
+        self.assertNotEqual(rejected.returncode, 0)
+        accepted_dest = self.work / 'low-capability'
+        accepted = self.make_plan(accepted_dest, internal='80', external='34774', low_port=True)
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        self.assertEqual((accepted_dest / 'binding-mode').read_text().strip(), 'capability')
+        self.assertEqual(self.lib('verify_plan "' + str(accepted_dest) + '"').returncode, 0)
+        self.assertIn('node.example.com:34774', json.loads((accepted_dest / 'client.json').read_text())['server'])
+
+    def test_10b_binding_mode_tamper_rejected_after_manifest_recompute(self):
+        dest = self.work / 'bad-binding'
+        shutil.copytree(self.plan, dest)
+        (dest / 'binding-mode').write_text('capability\n')
+        manifest = '\n'.join(hashlib.sha256((dest / item).read_bytes()).hexdigest() + '  ' + item
+                             for item in ['server.yaml', 'dnsmasq.conf', 'blocklist.conf', 'server.crt',
+                                          'server.key', 'client.json', 'node-uri.txt', 'hysteria',
+                                          'binary.sha256', 'tls-mode', 'binding-mode', 'bbr-profile', 'format-version']) + '\n'
+        (dest / 'SHA256SUMS').write_text(manifest)
+        self.assertNotEqual(self.lib('verify_plan "' + str(dest) + '"').returncode, 0)
+
+    def test_10c_aggressive_bbr_is_explicit_on_server_and_client(self):
+        dest = self.work / 'aggressive-bbr'
+        result = self.make_plan(dest, bbr_profile='aggressive')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((dest / 'bbr-profile').read_text().strip(), 'aggressive')
+        self.assertIn('bbrProfile: aggressive', (dest / 'server.yaml').read_text())
+        client = json.loads((dest / 'client.json').read_text())
+        self.assertEqual(client['congestion'], {'type': 'bbr', 'bbrProfile': 'aggressive'})
 
     def test_11_path_guards(self):
         for path in ['relative', '/tmp/../tmp/plan', '/tmp/plan name', '/']:

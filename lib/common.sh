@@ -41,7 +41,17 @@ confirm() {
     [ "$reply" = YES ] || die '已取消，未开始安装/卸载'
 }
 # Explicit list: no globbing, traversal or executable manifests.
-PLAN_FILES='server.yaml dnsmasq.conf blocklist.conf server.crt server.key client.json node-uri.txt hysteria binary.sha256 tls-mode format-version'
+PLAN_FILES='server.yaml dnsmasq.conf blocklist.conf server.crt server.key client.json node-uri.txt hysteria binary.sha256 tls-mode binding-mode bbr-profile format-version'
+plan_listen_port() {
+    awk '
+        /^listen:/ {
+            n++
+            if ($0 !~ /^listen:[[:space:]]+0\.0\.0\.0:[0-9]+$/) bad=1
+            else { p=$0; sub(/^listen:[[:space:]]+0\.0\.0\.0:/, "", p) }
+        }
+        END { if (n != 1 || bad || p == "") exit 1; print p }
+    ' "$1/server.yaml"
+}
 verify_plan() {
     PLAN=$1
     valid_path "$PLAN" || die '计划目录必须是安全的绝对路径（不含空格或 ..）'
@@ -49,11 +59,25 @@ verify_plan() {
     for item in $PLAN_FILES SHA256SUMS; do
         [ -f "$PLAN/$item" ] && [ ! -L "$PLAN/$item" ] || die "计划缺少普通文件: $item"
     done
-    [ "$(cat "$PLAN/format-version")" = 1 ] || die '不支持此计划格式'
+    [ "$(cat "$PLAN/format-version")" = 3 ] || die '不支持此计划格式'
     # Compare fresh canonical manifest rather than trusting manifest paths.
     actual=$(cd "$PLAN" && for item in $PLAN_FILES; do sha256sum "$item"; done)
     [ "$actual" = "$(cat "$PLAN/SHA256SUMS")" ] || die '计划完整性校验失败，请重新生成'
     expected=$(cat "$PLAN/binary.sha256")
     valid_sha "$expected" || die '无效二进制校验值'
     [ "$(sha_file "$PLAN/hysteria")" = "$expected" ] || die 'Hysteria 二进制 SHA256 不匹配'
+    listen_port=$(plan_listen_port "$PLAN") || die 'server.yaml 的 listen 必须是唯一的 0.0.0.0:端口'
+    valid_port "$listen_port" || die 'server.yaml 的 listen 端口无效'
+    [ "$listen_port" -ne 5353 ] || die '5353 已保留给本地 DNS'
+    binding_mode=$(cat "$PLAN/binding-mode")
+    case "$binding_mode" in
+        unprivileged) [ "$listen_port" -ge 1024 ] || die '低端口计划必须明确使用 capability 模式' ;;
+        capability) [ "$listen_port" -lt 1024 ] || die '高端口计划不得请求 capability 模式' ;;
+        *) die '无效的 binding-mode' ;;
+    esac
+    bbr_profile=$(cat "$PLAN/bbr-profile")
+    case "$bbr_profile" in
+        standard|conservative|aggressive) ;;
+        *) die '无效的 BBR profile' ;;
+    esac
 }

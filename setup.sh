@@ -14,6 +14,8 @@ setup_help() {
         '--plan-only [新计划目录]: 只生成离线计划，不安装、不联网；无路径时打开向导菜单。' \
         '必须事先准备可信的官方 Hysteria 2 二进制及官方 SHA256 digest。' \
         '共享域名首次官网注册/选名不能由 API 自动完成。' \
+        '内部低端口需显式 NHK_LOW_PORT=capability；仅授予程序绑定低端口能力，仍非 root。' \
+        '设置向导支持 BBR 档位 standard/conservative/aggressive；使用该功能需 Hysteria 2.8.0+。' \
         '不会自动修改防火墙/NAT，不保证 64 MB 内存或公网连通性。'
 }
 case "${1:-deploy}" in
@@ -63,6 +65,7 @@ for account in nhk nhk-dns; do
 done
 printf '%s\n' \
     '一条命令搭建：检查环境 → 准备依赖 → 生成计划 → 审阅 → 确认安装。' \
+    '设置向导会询问地址、UDP 映射、BBR 档位、DNS 上游与证书方式。' \
     '本工具安装 Hysteria 2 与 dnsmasq，不隐藏真实软件、协议或公网 IP。' \
     '请先准备官方 Hysteria 2 二进制和官方 SHA256 digest；脚本不自动下载可执行程序。' \
     '1) 使用已有域名或 IPv4' \

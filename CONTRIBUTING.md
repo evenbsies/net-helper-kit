@@ -4,7 +4,7 @@
 
 ## 开始前
 
-1. 阅读 [`README.md`](README.md)、[`SECURITY.md`](SECURITY.md)、[`docs/SHARED-DOMAIN.md`](docs/SHARED-DOMAIN.md) 和本文件。
+1. 阅读 [`README.md`](README.md)、[`SECURITY.md`](SECURITY.md)、[`docs/ACCELERATION.md`](docs/ACCELERATION.md)、[`docs/SHARED-DOMAIN.md`](docs/SHARED-DOMAIN.md) 和本文件。
 2. 对照 [Hysteria 服务端配置](https://v2.hysteria.network/docs/advanced/Full-Server-Config/)、[客户端配置](https://v2.hysteria.network/docs/advanced/Full-Client-Config/)、[dnsmasq 手册](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) 与 [DuckDNS update API](https://www.duckdns.org/spec.jsp) 核对字段。
 3. 只在隔离的本地环境或明确控制的测试主机试验；不要把真实凭据、profile、计划或生产配置写入仓库。
 
@@ -26,7 +26,7 @@
 ./tests/run.sh
 ```
 
-当前版本已通过 ShellCheck、shell 语法检查和 41 项离线回归测试；后续改动仍须重新执行，不要新增或宣称未经执行的测试数字。不要宣称本次已实测新版 Alpine 完整生命周期、真实 VPS、64 MB 限制、长期运行、NAT/UDP 可达性或永久免费服务。真实网络检查必须明确标注并使用占位符凭据；不要把 DuckDNS 更新写入常规离线测试。
+当前版本已通过 ShellCheck、shell 语法检查和 46 项离线回归测试；后续改动仍须重新执行，不要新增或宣称未经执行的测试数字。BBR profile 只验证了生成配置，不得声称已在 64 MB 主机上验证性能或稳定性。不要宣称本次已实测新版 Alpine 完整生命周期、长期运行、NAT/UDP 可达性或永久免费服务。真实网络检查必须明确标注并使用占位符凭据；不要把 DuckDNS 更新写入常规离线测试。
 
 修改安装、卸载、权限、profile、TLS pin、URI 或服务依赖时，应补充可重复的离线测试，并说明未覆盖的 Alpine/OpenRC/NAT 情况。避免触碰真实 `/etc`；需要 root 或真实网络的检查应优先使用临时根目录或网络命名空间。
 

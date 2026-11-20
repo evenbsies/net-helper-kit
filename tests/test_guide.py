@@ -47,6 +47,17 @@ class GuideTests(unittest.TestCase):
         self.assertNotIn('服务器公网 IPv4 或域名（不自动探测）', result.stderr)
         self.assertIn('内部端口', result.stderr)
 
+    def test_satisfied_install_dependencies_do_not_reload_repositories(self):
+        script = '. "$1/lib/install.sh"; apk() { [ "$1" = info ]; }; ensure_install_packages dnsmasq openssl'
+        result = subprocess.run(['sh', '-eu', '-c', script, 'sh', str(ROOT)],
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_install_snapshot_does_not_use_tmpfs_default(self):
+        script = (ROOT / 'lib/install.sh').read_text()
+        self.assertIn('mktemp -d /var/lib/.nhk-apply.XXXXXX', script)
+        self.assertNotIn('mktemp -d /tmp/nhk-apply.', script)
+
     def test_neutral_service_paths_are_consistent(self):
         for name in ['nhk-dns', 'nhk-hysteria']:
             path = ROOT / 'openrc' / name

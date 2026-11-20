@@ -47,7 +47,7 @@ class SharedDnsTests(unittest.TestCase):
 
     def shared_input(self, slug="edge-node"):
         return (f"{slug}\n8.8.8.8\n{TOKEN}\nYES\n"
-                f"1024\n1024\n1.1.1.1\n{self.fixture}\n{self.sha}\npin\n")
+                f"1024\n1024\nstandard\n1.1.1.1\n{self.fixture}\n{self.sha}\npin\n")
 
     def test_success_real_wizard_shared_plan_and_get(self):
         profile, output = self.work / "profile", self.work / "output"
@@ -92,7 +92,7 @@ class SharedDnsTests(unittest.TestCase):
 
     def test_plan_failure_keeps_profile_and_does_not_offer_shared_plan_overwrite(self):
         profile, output = self.work / "kept-profile", self.work / "failed-output"
-        data = (f"slug\n8.8.8.8\n{TOKEN}\nYES\n1024\n1024\n1.1.1.1\n"
+        data = (f"slug\n8.8.8.8\n{TOKEN}\nYES\n1024\n1024\nstandard\n1.1.1.1\n"
                 f"{self.fixture}\n{'0' * 64}\npin\n")
         r = self.run_shell("shared_plan", output, profile, data=data)
         self.assertNotEqual(r.returncode, 0)

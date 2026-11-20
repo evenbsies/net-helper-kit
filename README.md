@@ -23,7 +23,7 @@
 sh ./setup.sh
 ```
 
-脚本会依次检查环境和已有安装、询问地址模式与新计划路径、确认后安装基础依赖、生成私有计划，再进入安装确认，成功后启动两个服务并执行进程检查。不需要手动把 `plan` 与 `apply` 两条命令接起来。它是**一条命令的交互式向导，不是无人值守安装**；请先审查源代码，不要 `curl | sh`，也不要只下载这一个脚本而缺少项目其他文件。
+脚本会依次检查环境和已有安装，再通过设置向导询问地址、NAT UDP 内外端口、BBR 档位、DNS 上游和证书方式；确认后安装基础依赖、生成私有计划并进入安装确认，成功后启动两个服务并执行进程检查。不需要手动把 `plan` 与 `apply` 两条命令接起来。它是**一条命令的交互式向导，不是无人值守安装**；请先审查源代码，不要 `curl | sh`，也不要只下载这一个脚本而缺少项目其他文件。
 
 仍需准备官方 Hysteria 2 二进制及官方 SHA256 digest，并填写实际 UDP 映射；共享子域名首次官网注册/选名也仍需手动完成。脚本不自动修改防火墙或 NAT。安装基础依赖需要一次 `YES`，启动安装前还有原安装器的 `YES` 确认；取消不会回滚已安装的 apk 包、生成的私有计划或已更新的 DNS。
 
@@ -70,6 +70,20 @@ sh ./setup.sh --plan-only "$HOME/net-helper-plan"
 
 IP 变动时，先在 profile 中手动编辑 `ipv4`，保持上述权限、所有者、无符号链接和源代码树外路径，再执行 `dns-update`。没有定时器、daemon 或自动续期；`dns-update` 固定使用 profile 的明确 IPv4，不依赖自动探测。
 
+## NAT 映射到内部低端口时
+
+默认只允许内部端口不低于 1024。若服务商实际将 UDP 映射到内部 80 等低端口，可显式选择最小权限模式：
+
+```sh
+NHK_LOW_PORT=capability sh ./setup.sh
+```
+
+这不会把服务改成 root，也不会修改系统全局低端口策略或防火墙；安装器只给本项目的 Hysteria 程序添加 `cap_net_bind_service=ep`，以允许它由专用非 root 账号监听低端口。仅有低端口计划才需要额外的 capability 工具包。容器必须允许此 capability 和文件权限标记，否则安装会失败并清理本次项目文件；新增 apk 包与账号仍按原策略保留。不要把 SSH 的 TCP 映射当成节点 UDP 映射。
+
+## Hysteria 2 BBR 加速档位
+
+计划向导可选 `standard`、`conservative` 或 `aggressive`，默认 `standard`；所选档位写入服务端和客户端配置。需使用 Hysteria 2.8.0 或更新版本。这里是 Hysteria 自带的 QUIC BBR，不是 Linux TCP BBR，不需要修改内核 sysctl。`aggressive` 在某些链路可能更快，但不是保证；小内存或共享链路请先从默认档开始并小流量验证。节点 URI 不携带 BBR 档位，需使用生成的 `client.json` 才能在客户端应用所选设置。详见 [`docs/ACCELERATION.md`](docs/ACCELERATION.md)。
+
 ## 二进制、TLS、DNS 与客户端
 
 不要执行 `curl | sh`，项目不自动下载。请从 [Hysteria 官方 Releases](https://github.com/HyNetworks/hysteria/releases) 获取适合 `uname -m` 的 Linux 资产，并输入**官方 Release asset 提供的 SHA-256 digest**；脚本只重新计算本地文件进行比对。
@@ -85,6 +99,6 @@ curl --noproxy '' --socks5-hostname 127.0.0.1:1080 https://example.com/
 
 ## 测试与许可证
 
-本次通过 ShellCheck、shell 语法检查和 **41 项离线回归测试**，包含模拟 DuckDNS API 与真实向导整合。未访问真实 DuckDNS 账号，也未重跑新版 Alpine 完整安装生命周期。没有在真实 VPS、64 MB 限制、生产 NAT 或长期运行下验证。
+本次通过 ShellCheck、shell 语法检查和 **46 项离线回归测试**，包含模拟 DuckDNS API 与真实向导整合。未访问真实 DuckDNS 账号。已在一台 Alpine 3.24.2、64 MB 限制的真实 NAT VPS 上完成低端口部署、非 root 服务检查、公网 UDP HTTPS 转发、测试域名过滤和错误指纹拒绝；未做压力、并发、长期运行或稳定性验证。BBR 档位只做离线配置验证，没有在 64 MB 主机上进行 BBR 性能或长期测试。在线 apk 曾因内存峰值失败，最终通过磁盘校验副本及官方签名离线依赖完成安装。
 
 本项目自有代码采用 [MIT License](LICENSE)。Hysteria、dnsmasq、Alpine 包及其他依赖分别受其上游许可证约束；本项目不重新许可它们。请先阅读 [`SECURITY.md`](SECURITY.md) 与 [`CONTRIBUTING.md`](CONTRIBUTING.md)。

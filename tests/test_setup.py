@@ -56,9 +56,9 @@ class SetupTests(unittest.TestCase):
         )
 
     def plan_answers(self):
-        # host, internal port, external port, upstream, binary, sha, TLS mode
+        # host, internal port, external port, BBR profile, upstream, binary, sha, TLS mode
         return "\n".join(
-            ["node.example.com", "24443", "34443", "1.1.1.1", str(self.fixture), self.sha, "pin"]
+            ["node.example.com", "24443", "34443", "standard", "1.1.1.1", str(self.fixture), self.sha, "pin"]
         ) + "\n"
 
     def test_help_is_available_both_executable_and_sh_invocation(self):
@@ -68,6 +68,7 @@ class SetupTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("一条命令", result.stdout)
                 self.assertIn("--plan-only", result.stdout)
+                self.assertIn("BBR 档位", result.stdout)
                 self.assertEqual(result.stderr, "")
 
     def test_invalid_argument_fails_immediately_without_side_effects(self):
