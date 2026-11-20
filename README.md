@@ -86,6 +86,12 @@ NHK_LOW_PORT=capability sh ./setup.sh
 
 ## 二进制、TLS、DNS 与客户端
 
+### 上游 Hysteria 官方安装脚本（独立可选）
+
+仓库还附带了官方安装脚本快照：[`vendor/hysteria/install_server.sh`](vendor/hysteria/install_server.sh)。从仓库 `git pull` 即可取得当前已提交版本；来源、SHA-256、许可证和更新方式见 [`vendor/hysteria/README.md`](vendor/hysteria/README.md)。
+
+**它不属于本项目的一键安装流程，也不支持本项目目标 Alpine。** 官方脚本面向 systemd 发行版，会安装或更新系统级 Hysteria 和 systemd 服务，且只生成示例配置，仍需自行配置。仅在另一台受支持的 systemd Linux 主机上、审阅脚本后单独运行；不要在 Alpine/OpenRC 主机上运行，也不要与本项目的 OpenRC 安装混用。Alpine 上仍按下文流程准备官方二进制及官方 SHA-256 digest。
+
 不要执行 `curl | sh`，项目不自动下载。请从 [Hysteria 官方 Releases](https://github.com/HyNetworks/hysteria/releases) 获取适合 `uname -m` 的 Linux 资产，并输入**官方 Release asset 提供的 SHA-256 digest**；脚本只重新计算本地文件进行比对。
 
 计划含随机密码、私钥、客户端配置和 URI，**不要上传、提交 Git 或发布计划**。两种证书模式都生成 `pinSHA256`：自签名证书有效期 365 天且无自动续期，该模式必须同时使用 `insecure=true` 与固定 pin；自有证书模式检查证书名和无口令私钥匹配，使用标准验证。不要在没有 pin 的情况下关闭证书验证。DNS 过滤只覆盖 Hysteria 实际收到并转发到远端 DNS 的域名请求，不保证 IP 直连、客户端本地 DNS、DoH/DoT 或应用内置解析被过滤。
@@ -99,6 +105,6 @@ curl --noproxy '' --socks5-hostname 127.0.0.1:1080 https://example.com/
 
 ## 测试与许可证
 
-本次通过 ShellCheck、shell 语法检查和 **46 项离线回归测试**，包含模拟 DuckDNS API 与真实向导整合。未访问真实 DuckDNS 账号。已在一台 Alpine 3.24.2、64 MB 限制的真实 NAT VPS 上完成低端口部署、非 root 服务检查、公网 UDP HTTPS 转发、测试域名过滤和错误指纹拒绝；未做压力、并发、长期运行或稳定性验证。BBR 档位只做离线配置验证，没有在 64 MB 主机上进行 BBR 性能或长期测试。在线 apk 曾因内存峰值失败，最终通过磁盘校验副本及官方签名离线依赖完成安装。
+本次通过 ShellCheck、shell 语法检查和 **47 项离线回归测试**，包含模拟 DuckDNS API 与真实向导整合。未访问真实 DuckDNS 账号。已在一台 Alpine 3.24.2、64 MB 限制的真实 NAT VPS 上完成低端口部署、非 root 服务检查、公网 UDP HTTPS 转发、测试域名过滤和错误指纹拒绝；未做压力、并发、长期运行或稳定性验证。BBR 档位只做离线配置验证，没有在 64 MB 主机上进行 BBR 性能或长期测试。在线 apk 曾因内存峰值失败，最终通过磁盘校验副本及官方签名离线依赖完成安装。
 
 本项目自有代码采用 [MIT License](LICENSE)。Hysteria、dnsmasq、Alpine 包及其他依赖分别受其上游许可证约束；本项目不重新许可它们。请先阅读 [`SECURITY.md`](SECURITY.md) 与 [`CONTRIBUTING.md`](CONTRIBUTING.md)。

@@ -9,6 +9,9 @@ client.json
 node-uri.txt
 SHA256SUMS
 hysteria
+# The upstream installer snapshot is intentional source, not a plan binary.
+!vendor/hysteria/
+!vendor/hysteria/**
 *.log
 *.tar.gz
 .env

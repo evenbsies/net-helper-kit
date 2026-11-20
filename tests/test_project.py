@@ -275,6 +275,24 @@ class ProjectTests(unittest.TestCase):
             proc.wait(timeout=5)
             proc.stdout.close()
 
+    def test_21_vendored_official_installer_integrity_and_isolation(self):
+        vendor = ROOT / 'vendor' / 'hysteria'
+        script = vendor / 'install_server.sh'
+        self.assertTrue(script.is_file())
+        expected = (vendor / 'SHA256SUMS').read_text().split()[0]
+        actual = hashlib.sha256(script.read_bytes()).hexdigest()
+        self.assertEqual(actual, expected)
+        script_text = script.read_text()
+        self.assertIn('SPDX-License-Identifier: MIT', script_text)
+        self.assertIn('Copyright (c) 2023 Aperture Internet Laboratory', script_text)
+        self.assertIn('Copyright 2023 Toby', (vendor / 'LICENSE.md').read_text())
+        provenance = (vendor / 'README.md').read_text()
+        self.assertIn('get.hy2.sh', provenance)
+        self.assertIn('systemd', provenance)
+        self.assertIn('Alpine', provenance)
+        for entry in ['setup.sh', 'wizard.sh']:
+            self.assertNotIn('vendor/hysteria/install_server.sh', (ROOT / entry).read_text())
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

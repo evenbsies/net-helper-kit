@@ -6,4 +6,5 @@ cd "$(dirname "$0")/.."
 shellcheck -x -e SC2015 setup.sh wizard.sh lib/*.sh tests/*.sh
 shellcheck -s sh -e SC2034 openrc/*
 for file in setup.sh wizard.sh lib/*.sh openrc/* tests/*.sh; do sh -n "$file"; done
+bash -n vendor/hysteria/install_server.sh
 python3 -m unittest discover -s tests -p 'test_*.py' -v
